@@ -39,7 +39,8 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 
     /* Create shard directory (.pes/objects/XX/) */
     char dir_path[512];
-    strncpy(dir_path, final_path, sizeof(dir_path));
+    strncpy(dir_path, final_path, sizeof(dir_path) - 1);
+    dir_path[sizeof(dir_path) - 1] = '\0';
 
     char *last_slash = strrchr(dir_path, '/');
     if (!last_slash) {
@@ -48,7 +49,10 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
     }
 
     *last_slash = '\0';
-    mkdir(dir_path, 0755);
+
+    if (mkdir(dir_path, 0755) != 0) {
+        /* ignore if already exists */
+    }
 
     /* Create temporary file path */
     char temp_path[512];
@@ -78,7 +82,7 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
         return -1;
     }
 
-    /* fsync the shard directory to persist rename */
+    /* fsync shard directory */
     int dir_fd = open(dir_path, O_RDONLY);
     if (dir_fd >= 0) {
         fsync(dir_fd);
@@ -93,12 +97,12 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
     char path[512];
     object_path(id, path, sizeof(path));
 
-    /* Open file */
+    /* Open object file */
     FILE *fp = fopen(path, "rb");
     if (!fp)
         return -1;
 
-    /* Find file size */
+    /* Get file size */
     fseek(fp, 0, SEEK_END);
     long file_size = ftell(fp);
     rewind(fp);
@@ -123,7 +127,7 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
 
     fclose(fp);
 
-    /* Verify integrity by recomputing hash */
+    /* Verify integrity */
     ObjectID computed_id;
     compute_hash(buffer, file_size, &computed_id);
 
@@ -132,7 +136,7 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
         return -1;
     }
 
-    /* Find null terminator separating header and data */
+    /* Find null terminator between header and data */
     char *null_pos = memchr(buffer, '\0', file_size);
     if (!null_pos) {
         free(buffer);
@@ -162,7 +166,13 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
         return -1;
     }
 
-    /* Allocate and copy actual data */
+    /* Validate size */
+    if (header_len + size > (size_t)file_size) {
+        free(buffer);
+        return -1;
+    }
+
+    /* Copy actual data */
     *data_out = malloc(size);
     if (!*data_out) {
         free(buffer);
