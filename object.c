@@ -109,6 +109,18 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 
 /* Create header: "<type> <size>\0" */
 int header_len = snprintf(header, sizeof(header), "%s %zu", type_str, len) + 1;
+  /* Combine header + actual data */
+  size_t total_len = header_len + len;
+  char *full_object = malloc(total_len);
+
+  if (!full_object)
+    return -1;
+
+  memcpy(full_object, header, header_len);
+  memcpy(full_object + header_len, data, len);
+
+  /* Compute SHA-256 hash of full object */
+  compute_hash(full_object, total_len, id_out);
 }
 
 // Read an object from the store.
