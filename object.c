@@ -94,9 +94,21 @@ int object_exists(const ObjectID *id) {
 //
 // Returns 0 on success, -1 on error.
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
-    // TODO: Implement
-    (void)type; (void)data; (void)len; (void)id_out;
-    return -1;
+   char type_str[10];
+   char header[64];
+
+   /* Convert enum type to string */
+   if (type == OBJ_BLOB)
+      strcpy(type_str, "blob");
+   else if (type == OBJ_TREE)
+      strcpy(type_str, "tree");
+   else if (type == OBJ_COMMIT)
+      strcpy(type_str, "commit");
+   else
+     return -1;
+
+/* Create header: "<type> <size>\0" */
+int header_len = snprintf(header, sizeof(header), "%s %zu", type_str, len) + 1;
 }
 
 // Read an object from the store.
