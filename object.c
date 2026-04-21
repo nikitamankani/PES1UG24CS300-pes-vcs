@@ -143,6 +143,33 @@ int header_len = snprintf(header, sizeof(header), "%s %zu", type_str, len) + 1;
 
 *last_slash = '\0';
 mkdir(dir_path, 0755);
+/* Create temporary file path */
+char temp_path[512];
+snprintf(temp_path, sizeof(temp_path), "%s/temp_object", dir_path);
+
+/* Open temp file */
+int fd = open(temp_path, O_CREAT | O_WRONLY | O_TRUNC, 0644);
+if (fd < 0) {
+    free(full_object);
+    return -1;
+}
+
+/* Write full object */
+if (write(fd, full_object, total_len) != (ssize_t)total_len) {
+    close(fd);
+    free(full_object);
+    return -1;
+}
+
+/* Flush file to disk */
+fsync(fd);
+close(fd);
+
+/* Atomically rename temp file to final object path */
+if (rename(temp_path, final_path) != 0) {
+    free(full_object);
+    return -1;
+}
 }
 
 // Read an object from the store.
