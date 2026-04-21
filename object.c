@@ -121,6 +121,28 @@ int header_len = snprintf(header, sizeof(header), "%s %zu", type_str, len) + 1;
 
   /* Compute SHA-256 hash of full object */
   compute_hash(full_object, total_len, id_out);
+      /* Deduplication: if object already exists, return success */
+     if (object_exists(id_out)) {
+        free(full_object);
+        return 0;
+   }
+
+     /* Get final object path */
+     char final_path[512];
+     object_path(id_out, final_path, sizeof(final_path));
+
+    /* Create shard directory (.pes/objects/XX/) */
+    char dir_path[512];
+    strncpy(dir_path, final_path, sizeof(dir_path));
+
+    char *last_slash = strrchr(dir_path, '/');
+    if (!last_slash) {
+       free(full_object);
+       return -1;
+}
+
+*last_slash = '\0';
+mkdir(dir_path, 0755);
 }
 
 // Read an object from the store.
