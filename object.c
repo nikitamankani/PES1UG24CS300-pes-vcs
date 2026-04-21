@@ -196,6 +196,18 @@ if (rename(temp_path, final_path) != 0) {
 // Returns 0 on success, -1 on error (file not found, corrupt, etc.).
 int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_t *len_out) {
     // TODO: Implement
+    /* fsync the shard directory to persist rename */
+int dir_fd = open(dir_path, O_RDONLY);
+if (dir_fd >= 0) {
+    fsync(dir_fd);
+    close(dir_fd);
+}
+
+/* Free allocated memory */
+free(full_object);
+
+/* Success */
+return 0;
     (void)id; (void)type_out; (void)data_out; (void)len_out;
     return -1;
 }
